@@ -580,6 +580,14 @@
         </div>
         <button class="btn-primary" onclick="submitPrediction()">✨ SUBMIT PREDICTION</button>
       </div>
+      <div style="margin-top: 20px;">
+        <div class="match-label" style="margin-bottom: 12px;">👥 ALL PREDICTIONS FOR THIS MATCH</div>
+        <div id="all-predictions-list"
+          style="background: rgba(0,0,0,0.25); border-radius: 16px; padding: 12px; max-height: 300px; overflow-y: auto;">
+          <div style="text-align:center; color: var(--text-muted); padding: 16px;">Select a match to see predictions
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="tab-result" class="section">
@@ -727,6 +735,7 @@
         snapshot.forEach(doc => predictions.push({ id: doc.id, ...doc.data() }));
         renderLeaderboard();
         renderHistory();
+        renderAllPredictions();  // 👈 Added: updates the "all predictions" list
       });
     }
 
@@ -869,6 +878,7 @@
         document.getElementById('score-label-a').innerHTML = 'Team A';
         document.getElementById('score-label-b').innerHTML = 'Team B';
       }
+      renderAllPredictions();
     }
 
     function renderLeaderboard() {
@@ -1050,6 +1060,35 @@
       if (tabId === 'leaderboard') renderLeaderboard();
       if (tabId === 'history') renderHistory();
       if (tabId === 'result') renderResultGate();
+    }
+
+    function renderAllPredictions() {
+      const matchId = document.getElementById('match-select').value;
+      const container = document.getElementById('all-predictions-list');
+      if (!container) return;
+
+      if (!matchId) {
+        container.innerHTML = '<div style="text-align:center; color: var(--text-muted); padding: 16px;">⚽ Select a match to see predictions</div>';
+        return;
+      }
+
+      // Filter predictions for this match
+      const matchPredictions = predictions.filter(p => p.matchId === matchId);
+
+      if (matchPredictions.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color: var(--text-muted); padding: 16px;">🤔 No predictions yet for this match. Be the first!</div>';
+        return;
+      }
+
+      // Sort by timestamp (oldest first) or alphabetically by name
+      const sorted = [...matchPredictions].sort((a, b) => (a.cousin || '').localeCompare(b.cousin || ''));
+
+      container.innerHTML = sorted.map(p => `
+    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); margin-bottom: 8px; padding: 10px 14px; border-radius: 12px;">
+      <span style="font-weight: 700; font-size: 14px;">👤 ${p.cousin}</span>
+      <span style="background: var(--green-deep); color: #041e17; padding: 4px 12px; border-radius: 30px; font-weight: 800; font-size: 14px;">${p.scoreA} – ${p.scoreB}</span>
+    </div>
+  `).join('');
     }
 
     document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab'))));
