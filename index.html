@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title> POOTHAS FIFA World Cup Predictor · Cousins Cup</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at 20% 30%, #0a1a2f, #03070f);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px 0 40px;
+    }
+
+    :root {
+      --green: #00e29b;
+      --green-deep: #00b884;
+      --gold: #ffd34d;
+      --red: #ff5d6c;
+      --blue: #4dc1ff;
+      --surface: rgba(20, 30, 45, 0.65);
+      --surface2: rgba(30, 40, 58, 0.8);
+      --border: rgba(255, 255, 255, 0.12);
+      --text-muted: rgba(255, 255, 255, 0.6);
+      --card-bg: rgba(12, 22, 35, 0.75);
+    }
+
+    .app {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 12px 18px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 10px;
+      padding: 12px 0 8px;
+    }
+
+    .header-trophy {
+      font-size: 44px;
+      filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4));
+    }
+
+    .header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      background: linear-gradient(130deg, var(--gold), var(--green));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.2px;
+    }
+
+    .header p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    .sync-status {
+      text-align: center;
+      font-size: 11px;
+      color: var(--green);
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      display: inline-block;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 0.3;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin: 20px 0 24px;
+      background: rgba(10, 20, 32, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 60px;
+      padding: 6px;
+      backdrop-filter: blur(8px);
+    }
+
+    .tab {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 10px 0;
+      border-radius: 40px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+
+    .tab.active {
+      background: linear-gradient(105deg, var(--green), var(--green-deep));
+      color: #041f18;
+      box-shadow: 0 6px 14px rgba(0, 226, 155, 0.25);
+      font-weight: 800;
+    }
+
+    .section {
+      display: none;
+      animation: fade 0.2s ease;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    @keyframes fade {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .match-card,
+    .result-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 22px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 18px 32px -12px rgba(0, 0, 0, 0.4);
+    }
+
+    .match-label,
+    .result-header {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    select,
+    .who-select,
+    .match-select,
+    .result-match-select {
+      width: 100% !important;
+      background: #1f2c3c !important;
+      border: 1.2px solid rgba(255, 255, 255, 0.2) !important;
+      border-radius: 18px !important;
+      color: #f0f3f8 !important;
+      font-size: 14px !important;
+      font-weight: 500 !important;
+      padding: 12px 16px !important;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a0c0e0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      background-size: 16px;
+    }
+
+    select:focus,
+    .who-select:focus,
+    .match-select:focus {
+      border-color: var(--green) !important;
+      box-shadow: 0 0 0 3px rgba(0, 226, 155, 0.2);
+      background-color: #1e2c3e !important;
+    }
+
+    select option,
+    .who-select option,
+    .match-select option {
+      background: #14212e !important;
+      color: #f0f6ff !important;
+      padding: 12px !important;
+      font-weight: 500;
+      border: none;
+    }
+
+    input,
+    .score-box,
+    .pin-setup input {
+      background: #1f2c3c;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+      color: white;
+      padding: 10px 14px;
+      transition: 0.15s;
+    }
+
+    input:focus,
+    .score-box:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 2px rgba(0, 226, 155, 0.25);
+      outline: none;
+    }
+
+    .score-inputs {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .score-input-wrap {
+      text-align: center;
+    }
+
+    .score-input-wrap label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .score-box {
+      width: 80px;
+      height: 66px;
+      font-size: 32px;
+      font-weight: 800;
+      text-align: center;
+      background: #0f1924;
+      border-radius: 20px;
+    }
+
+    .score-dash {
+      font-size: 26px;
+      font-weight: 300;
+      color: var(--text-muted);
+    }
+
+    .btn-primary {
+      background: linear-gradient(115deg, var(--green), var(--green-deep));
+      border: none;
+      width: 100%;
+      padding: 14px;
+      border-radius: 40px;
+      font-weight: 800;
+      font-size: 15px;
+      color: #041e17;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 0 6px 14px rgba(0, 226, 155, 0.3);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.97);
+    }
+
+    .btn-result {
+      background: linear-gradient(135deg, var(--gold), #ffb347);
+      border: none;
+      width: 100%;
+      padding: 14px;
+      border-radius: 40px;
+      font-weight: 800;
+      color: #2c2000;
+    }
+
+    .btn-sm {
+      background: #253544;
+      border: 1px solid var(--green);
+      padding: 10px 20px;
+      border-radius: 28px;
+      color: var(--green);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .add-match-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .add-match-row input {
+      flex: 1;
+      min-width: 110px;
+    }
+
+    .predictor-block {
+      margin: 20px 0 12px;
+    }
+
+    .result-score-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .result-team {
+      font-weight: 700;
+      font-size: 14px;
+      max-width: 100px;
+      text-align: center;
+    }
+
+    .result-score input {
+      width: 70px;
+      height: 64px;
+      font-size: 30px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .winner-chip {
+      display: inline-block;
+      background: rgba(0, 226, 155, 0.18);
+      border: 1px solid rgba(0, 226, 155, 0.4);
+      border-radius: 40px;
+      padding: 6px 16px;
+      margin: 5px 6px 0 0;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .lb-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--gold);
+    }
+
+    .lb-row {
+      background: rgba(20, 30, 45, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .lb-rank {
+      font-size: 18px;
+      font-weight: 800;
+      width: 42px;
+    }
+
+    .lb-name {
+      flex: 1;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .lb-wins {
+      background: #00e29b22;
+      padding: 5px 14px;
+      border-radius: 40px;
+      font-weight: 800;
+      color: var(--green);
+    }
+
+    .rank-1 {
+      border-left: 4px solid var(--gold);
+    }
+
+    .rank-2 {
+      border-left: 4px solid #cdcdcd;
+    }
+
+    .rank-3 {
+      border-left: 4px solid #cd7f32;
+    }
+
+    .pin-gate {
+      text-align: center;
+      padding: 20px 12px;
+    }
+
+    .pin-dots {
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      margin: 20px 0;
+    }
+
+    .pin-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      transition: 0.1s;
+    }
+
+    .pin-dot.filled {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    .pin-dot.error {
+      background: var(--red);
+    }
+
+    .pin-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      max-width: 260px;
+      margin: 20px auto;
+    }
+
+    .pin-btn {
+      background: #1e2d3c;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 30px;
+      padding: 16px 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+    }
+
+    .pin-unlocked-bar {
+      background: #0f2a1f40;
+      border: 1px solid var(--green);
+      border-radius: 40px;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-lock {
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 8px 18px;
+      border-radius: 30px;
+      color: #ff9f7c;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .history-item {
+      background: rgba(20, 30, 45, 0.6);
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .pred-correct {
+      color: var(--green);
+      font-weight: bold;
+    }
+
+    .pred-wrong {
+      color: var(--red);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e2f2a;
+      backdrop-filter: blur(12px);
+      padding: 10px 24px;
+      border-radius: 50px;
+      font-weight: 700;
+      color: var(--green);
+      transition: 0.2s;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-trophy">🏆🥅</div>
+      <h1>POOTHAS FIFA World Cup Predictor</h1>
+      <p>Predict scores, earn glory</p>
+      <div class="sync-status" id="sync-status">
+        <span class="sync-dot"></span>
+        <span id="sync-text">Connecting to cloud...</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="predict">📋 Predict</button>
+      <button class="tab" data-tab="result">⚡ Result</button>
+      <button class="tab" data-tab="leaderboard">🏅 Standings</button>
+      <button class="tab" data-tab="history">📜 History</button>
+    </div>
+
+    <div id="tab-predict" class="section active">
+      <div class="match-card">
+        <div class="match-label">🎯 MAKE YOUR PREDICTION</div>
+        <div class="form-label">⚽ Select match</div>
+        <select class="match-select" id="match-select">
+          <option value="">— Choose a match —</option>
+        </select>
+        <div id="selected-match-display"
+          style="text-align:center; font-weight:600; margin: 16px 0 8px; color: var(--text-muted);">
+          ⚽ Pick a match above
+        </div>
+        <div class="predictor-block">
+          <div class="form-label">👤 Who's predicting?</div>
+          <select class="who-select" id="predictor-select">
+            <option value="">— Choose your name —</option>
+          </select>
+        </div>
+        <div class="score-inputs">
+          <div class="score-input-wrap">
+            <label id="score-label-a">TEAM A</label>
+            <input type="number" class="score-box" id="pred-score-a" min="0" max="20" value="0">
+          </div>
+          <span class="score-dash">⚡</span>
+          <div class="score-input-wrap">
+            <label id="score-label-b">TEAM B</label>
+            <input type="number" class="score-box" id="pred-score-b" min="0" max="20" value="0">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="submitPrediction()">✨ SUBMIT PREDICTION</button>
+      </div>
+    </div>
+
+    <div id="tab-result" class="section">
+      <div id="pin-gate-wrap"></div>
+      <div id="result-form-wrap" style="display: none;">
+        <div class="pin-unlocked-bar">
+          <span>🔓 Admin mode · results unlocked</span>
+          <button class="btn-lock" onclick="lockResult()">🔒 Lock</button>
+        </div>
+        <div class="match-card">
+          <div class="match-label">➕ ADD NEW MATCH (admin)</div>
+          <div class="add-match-row">
+            <input type="text" id="team1-input" placeholder="Team A, e.g. Argentina" autocomplete="off">
+            <span style="color:var(--text-muted)">vs</span>
+            <input type="text" id="team2-input" placeholder="Team B, e.g. France" autocomplete="off">
+            <button class="btn-sm" onclick="addMatch()">➕ Add</button>
+          </div>
+        </div>
+        <div class="result-card">
+          <div class="match-label">🏁 ENTER FINAL SCORE</div>
+          <select class="match-select" id="result-match-select">
+            <option value="">— Select match —</option>
+          </select>
+          <div class="result-score-row">
+            <div class="result-team" id="result-team-a">Team A</div>
+            <div class="result-score"><input type="number" id="result-score-a" min="0" max="20" value="0"></div>
+            <span style="font-size: 20px;">—</span>
+            <div class="result-score"><input type="number" id="result-score-b" min="0" max="20" value="0"></div>
+            <div class="result-team" id="result-team-b">Team B</div>
+          </div>
+          <button class="btn-result" onclick="submitResult()">🏆 CONFIRM & AWARD WINNERS</button>
+        </div>
+        <div id="winners-section" style="display: none;">
+          <div class="result-card">
+            <div class="match-label">🥳 EXACT PREDICTORS</div>
+            <div id="winners-display" class="winners-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-leaderboard" class="section">
+      <div class="lb-title">🥇LEADERBOARD</div>
+      <div id="leaderboard-list"></div>
+    </div>
+
+    <div id="tab-history" class="section">
+      <div id="history-list"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast">✨</div>
+
+  <script>
+    // ==================== 🔥 FIREBASE CONFIGURATION ====================
+    // 👇 PASTE YOUR FIREBASE CONFIG HERE (from Firebase Console)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDB_QBT9vSvC5PfBM8jm_mHf2oMGiYUJGI",
+      authDomain: "fifa-predictor-6ab31.firebaseapp.com",
+      projectId: "fifa-predictor-6ab31",
+      storageBucket: "fifa-predictor-6ab31.firebasestorage.app",
+      messagingSenderId: "751693613247",
+      appId: "1:751693613247:web:d1c20c0bbf3d788c5d9e0a"
+    };
+    // ==================================================================
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ========== COUSINS NAMES (EDIT THIS LIST) ==========
+    const COUSINS = [
+      "Shamsheer",
+      "Shiraz",
+      "Haneefa",
+      "Shiraz",
+      "Noufal",
+      "Mashood",
+      "Noushad",
+      "Ashiq",
+      "Tharique",
+      "Shakeel",
+      "Shameel",
+      "Sajir",
+      "Muhsi",
+      "Nadeem",
+      "Hozef",
+      "Ziyan",
+      "Zeeshan",
+      "Zahal",
+      "Mazin",
+      "Amen",
+      "Rezin"
+
+    ];
+    // ====================================================
+
+    let resultUnlocked = false;
+    let pinInputBuffer = '';
+
+    function toastMsg(msg, isErr = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isErr ? '#c94f4f' : '#00e29b';
+      t.style.color = isErr ? '#fff' : '#0a2a1f';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2100);
+    }
+
+    function updateSyncStatus(connected) {
+      const statusText = document.getElementById('sync-text');
+      const dot = document.querySelector('.sync-dot');
+      if (connected) {
+        statusText.textContent = 'Live sync · Cloud connected';
+        dot.style.background = '#00e29b';
+      } else {
+        statusText.textContent = 'Offline mode · Reconnecting...';
+        dot.style.background = '#ff5d6c';
+      }
+    }
+
+    // Real-time listeners for shared data
+    let matches = [];
+    let predictions = [];
+    let results = [];
+    let leaderboard = {};
+
+    function listenToMatches() {
+      db.collection('matches').orderBy('date', 'desc').onSnapshot(snapshot => {
+        matches = [];
+        snapshot.forEach(doc => matches.push({ id: doc.id, ...doc.data() }));
+        renderMatchSelects();
+        onMatchSelectChange();
+        renderHistory();
+        renderLeaderboard();
+      });
+    }
+
+    function listenToPredictions() {
+      db.collection('predictions').onSnapshot(snapshot => {
+        predictions = [];
+        snapshot.forEach(doc => predictions.push({ id: doc.id, ...doc.data() }));
+        renderLeaderboard();
+        renderHistory();
+      });
+    }
+
+    function listenToResults() {
+      db.collection('results').onSnapshot(snapshot => {
+        results = [];
+        snapshot.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
+        renderLeaderboard();
+        renderHistory();
+      });
+    }
+
+    async function addMatchToFirestore(team1, team2) {
+      const match = {
+        team1,
+        team2,
+        date: new Date().toLocaleDateString('en-GB'),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await db.collection('matches').add(match);
+      toastMsg(`➕ ${team1} vs ${team2} added (shared)`);
+    }
+
+    async function submitPredictionToFirestore(matchId, cousin, scoreA, scoreB) {
+      // Check if prediction already exists
+      const existing = predictions.find(p => p.matchId === matchId && p.cousin === cousin);
+      if (existing) {
+        await db.collection('predictions').doc(existing.id).update({ scoreA, scoreB });
+        toastMsg(`✏️ ${cousin} prediction updated`);
+      } else {
+        await db.collection('predictions').add({
+          matchId,
+          cousin,
+          scoreA,
+          scoreB,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        toastMsg(`📝 ${cousin} predicted ${scoreA}–${scoreB}`);
+      }
+    }
+
+    async function submitResultToFirestore(matchId, scoreA, scoreB) {
+      const existing = results.find(r => r.matchId === matchId);
+      if (existing) {
+        toastMsg('Result already recorded!', true);
+        return;
+      }
+
+      await db.collection('results').add({
+        matchId,
+        scoreA,
+        scoreB,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Award points to exact predictors
+      const exactWinners = predictions.filter(p => p.matchId === matchId && p.scoreA === scoreA && p.scoreB === scoreB);
+
+      for (const winner of exactWinners) {
+        const leaderboardRef = db.collection('leaderboard').doc(winner.cousin);
+        const doc = await leaderboardRef.get();
+        const currentWins = doc.exists ? doc.data().wins : 0;
+        await leaderboardRef.set({ wins: currentWins + 1, name: winner.cousin });
+      }
+
+      const match = matches.find(m => m.id === matchId);
+      toastMsg(`✅ ${match?.team1} ${scoreA}–${scoreB} ${match?.team2}`);
+
+      const winnersDiv = document.getElementById('winners-display');
+      if (winnersDiv) {
+        winnersDiv.innerHTML = exactWinners.length ? exactWinners.map(w => `<div class="winner-chip">🎯 ${w.cousin}</div>`).join('') : '<span style="color: var(--text-muted);">No exact predictions</span>';
+        document.getElementById('winners-section').style.display = 'block';
+      }
+    }
+
+    async function listenToLeaderboard() {
+      db.collection('leaderboard').onSnapshot(snapshot => {
+        leaderboard = {};
+        snapshot.forEach(doc => {
+          leaderboard[doc.id] = doc.data().wins;
+        });
+        renderLeaderboard();
+      });
+    }
+
+    // UI Helper functions
+    function renderMatchSelects() {
+      const predSelect = document.getElementById('match-select');
+      if (predSelect) {
+        let opts = '<option value="">— Select a match —</option>';
+        matches.forEach(m => opts += `<option value="${m.id}">${m.team1} 🆚 ${m.team2} (${m.date})</option>`);
+        predSelect.innerHTML = opts;
+        predSelect.onchange = onMatchSelectChange;
+      }
+      const resultSelect = document.getElementById('result-match-select');
+      if (resultSelect) {
+        const usedIds = results.map(r => r.matchId);
+        const pending = matches.filter(m => !usedIds.includes(m.id));
+        let optsRes = '<option value="">— Choose match —</option>';
+        pending.forEach(m => optsRes += `<option value="${m.id}">${m.team1} vs ${m.team2} (${m.date})</option>`);
+        resultSelect.innerHTML = optsRes;
+        resultSelect.onchange = function () {
+          const match = matches.find(m => m.id === this.value);
+          if (match) {
+            document.getElementById('result-team-a').innerText = match.team1;
+            document.getElementById('result-team-b').innerText = match.team2;
+          }
+          document.getElementById('winners-section').style.display = 'none';
+        };
+      }
+    }
+
+    function onMatchSelectChange() {
+      const id = document.getElementById('match-select').value;
+      const match = matches.find(m => m.id === id);
+      const disp = document.getElementById('selected-match-display');
+      if (match) {
+        disp.style.color = '#fff';
+        disp.innerHTML = `${match.team1}  ⚡  ${match.team2}`;
+        document.getElementById('score-label-a').innerHTML = match.team1;
+        document.getElementById('score-label-b').innerHTML = match.team2;
+      } else {
+        disp.style.color = 'var(--text-muted)';
+        disp.innerHTML = '⚽ Pick a match from list';
+        document.getElementById('score-label-a').innerHTML = 'Team A';
+        document.getElementById('score-label-b').innerHTML = 'Team B';
+      }
+    }
+
+    function renderLeaderboard() {
+      const container = document.getElementById('leaderboard-list');
+      if (!container) return;
+      const arr = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]);
+      if (arr.length === 0) { container.innerHTML = '<div class="empty-lb">✨ No wins yet. Add results to start ranking!</div>'; return; }
+      const medals = ['🥇', '🥈', '🥉'];
+      container.innerHTML = arr.map(([name, wins], i) => `
+        <div class="lb-row ${i < 3 ? 'rank-' + (i + 1) : ''}">
+          <div class="lb-rank">${medals[i] || (i + 1)}</div>
+          <div class="lb-name">${name}</div>
+          <div class="lb-wins">${wins} win${wins !== 1 ? 's' : ''}</div>
+          ${i === 0 ? '<span style="font-size:20px;">👑</span>' : ''}
+        </div>
+      `).join('');
+    }
+
+    function renderHistory() {
+      const histDiv = document.getElementById('history-list');
+      if (!histDiv) return;
+      if (!results.length) { histDiv.innerHTML = '<div class="empty-lb">⚽ No completed matches yet.</div>'; return; }
+      const groups = {};
+      results.forEach(res => {
+        const match = matches.find(m => m.id === res.matchId);
+        if (!match) return;
+        if (!groups[match.date]) groups[match.date] = [];
+        const preds = predictions.filter(p => p.matchId === res.matchId);
+        groups[match.date].push({ match, result: res, preds });
+      });
+      histDiv.innerHTML = Object.entries(groups).reverse().map(([date, items]) => `
+        <div class="history-day">
+          <div class="history-day-label" style="font-size:12px; color:var(--gold); margin:12px 0 8px;">📅 ${date}</div>
+          ${items.map(item => {
+        const correct = (p) => p.scoreA === item.result.scoreA && p.scoreB === item.result.scoreB;
+        return `<div class="history-item">
+              <div class="history-match" style="font-weight:800;">${item.match.team1} 🆚 ${item.match.team2}</div>
+              <div class="history-result" style="margin:6px 0;">🏁 Final: ${item.result.scoreA} – ${item.result.scoreB}</div>
+              <div class="history-preds" style="font-size:12px;">${item.preds.map(p => `<span class="${correct(p) ? 'pred-correct' : 'pred-wrong'}">${p.cousin}: ${p.scoreA}–${p.scoreB} ${correct(p) ? '✓' : '✗'}</span>`).join(' · ')}</div>
+            </div>`;
+      }).join('')}
+        </div>
+      `).join('');
+    }
+
+    function renderPredictorDropdown() {
+      const sel = document.getElementById('predictor-select');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">— Choose your name —</option>' + COUSINS.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    // Wrapper functions for buttons
+    async function addMatch() {
+      const t1 = document.getElementById('team1-input').value.trim();
+      const t2 = document.getElementById('team2-input').value.trim();
+      if (!t1 || !t2) { toastMsg('Both team names needed', true); return; }
+      await addMatchToFirestore(t1, t2);
+      document.getElementById('team1-input').value = '';
+      document.getElementById('team2-input').value = '';
+    }
+
+    async function submitPrediction() {
+      const matchId = document.getElementById('match-select').value;
+      const predictor = document.getElementById('predictor-select').value;
+      const a = parseInt(document.getElementById('pred-score-a').value) || 0;
+      const b = parseInt(document.getElementById('pred-score-b').value) || 0;
+      if (!matchId) { toastMsg('Select a match first', true); return; }
+      if (!predictor) { toastMsg('Pick who is predicting', true); return; }
+      await submitPredictionToFirestore(matchId, predictor, a, b);
+    }
+
+    async function submitResult() {
+      const matchId = document.getElementById('result-match-select').value;
+      if (!matchId) { toastMsg('Pick a match', true); return; }
+      const scoreA = parseInt(document.getElementById('result-score-a').value) || 0;
+      const scoreB = parseInt(document.getElementById('result-score-b').value) || 0;
+      await submitResultToFirestore(matchId, scoreA, scoreB);
+      renderMatchSelects();
+    }
+
+    // PIN Gate (same as before, but now admin PIN stored locally per device)
+    function getAdminPin() { return localStorage.getItem('fifa_admin_pin') || ''; }
+    function setAdminPin(pin) { localStorage.setItem('fifa_admin_pin', pin); }
+
+    function renderResultGate() {
+      const pin = getAdminPin();
+      const gateWrap = document.getElementById('pin-gate-wrap');
+      const formWrap = document.getElementById('result-form-wrap');
+      if (!gateWrap || !formWrap) return;
+      if (resultUnlocked) {
+        gateWrap.style.display = 'none';
+        formWrap.style.display = 'block';
+        document.getElementById('winners-section').style.display = 'none';
+        renderMatchSelects();
+        return;
+      }
+      formWrap.style.display = 'none';
+      gateWrap.style.display = 'block';
+      if (!pin) {
+        gateWrap.innerHTML = `<div class="result-card">
+          <div class="match-label">🔐 CREATE ADMIN PIN</div>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Set a 4-digit PIN to control matches & results.</p>
+          <div class="pin-setup">
+            <input type="password" id="new-pin-input" maxlength="4" placeholder="••••" inputmode="numeric" autocomplete="off">
+            <button class="btn-primary" onclick="saveNewPin()">Set PIN & Unlock</button>
+          </div>
+        </div>`;
+        return;
+      }
+      gateWrap.innerHTML = `<div class="pin-gate">
+        <div class="pin-gate-icon">🔒</div>
+        <h2>Admin verification</h2>
+        <p>Enter 4‑digit PIN to add matches & results</p>
+        <div class="pin-dots" id="pin-dots">
+          <div class="pin-dot" id="dot-0"></div><div class="pin-dot" id="dot-1"></div>
+          <div class="pin-dot" id="dot-2"></div><div class="pin-dot" id="dot-3"></div>
+        </div>
+        <div class="pin-pad">
+          <button class="pin-btn" data-num="1">1</button><button class="pin-btn" data-num="2">2</button><button class="pin-btn" data-num="3">3</button>
+          <button class="pin-btn" data-num="4">4</button><button class="pin-btn" data-num="5">5</button><button class="pin-btn" data-num="6">6</button>
+          <button class="pin-btn" data-num="7">7</button><button class="pin-btn" data-num="8">8</button><button class="pin-btn" data-num="9">9</button>
+          <div></div><button class="pin-btn" data-num="0">0</button><button class="pin-btn del-btn">⌫</button>
+        </div>
+      </div>`;
+      pinInputBuffer = '';
+      updatePinDots();
+      document.querySelectorAll('.pin-btn[data-num]').forEach(btn => btn.addEventListener('click', (e) => { pinPress(btn.getAttribute('data-num')); }));
+      const del = document.querySelector('.del-btn');
+      if (del) del.addEventListener('click', () => pinDel());
+    }
+
+    function updatePinDots() {
+      for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById(`dot-${i}`);
+        if (dot) dot.classList.toggle('filled', i < pinInputBuffer.length);
+      }
+    }
+    function pinPress(digit) {
+      if (pinInputBuffer.length >= 4) return;
+      pinInputBuffer += digit;
+      updatePinDots();
+      if (pinInputBuffer.length === 4) setTimeout(() => verifyPin(), 120);
+    }
+    function pinDel() { pinInputBuffer = pinInputBuffer.slice(0, -1); updatePinDots(); }
+    function verifyPin() {
+      const stored = getAdminPin();
+      if (pinInputBuffer === stored) {
+        resultUnlocked = true;
+        renderResultGate();
+        renderMatchSelects();
+        toastMsg('✅ Admin unlocked');
+      } else {
+        for (let i = 0; i < 4; i++) {
+          const dot = document.getElementById(`dot-${i}`);
+          if (dot) dot.classList.add('error');
+        }
+        toastMsg('❌ Wrong PIN', true);
+        setTimeout(() => { pinInputBuffer = ''; updatePinDots(); }, 700);
+      }
+    }
+    function saveNewPin() {
+      const val = document.getElementById('new-pin-input').value.trim();
+      if (!/^\d{4}$/.test(val)) { toastMsg('PIN must be 4 digits', true); return; }
+      setAdminPin(val);
+      resultUnlocked = true;
+      renderResultGate();
+      renderMatchSelects();
+      toastMsg('PIN created! Unlocked now');
+    }
+    function lockResult() { resultUnlocked = false; renderResultGate(); document.getElementById('winners-section').style.display = 'none'; }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab').forEach((btn, idx) => {
+        const t = ['predict', 'result', 'leaderboard', 'history'][idx];
+        btn.classList.toggle('active', t === tabId);
+      });
+      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+      if (tabId === 'leaderboard') renderLeaderboard();
+      if (tabId === 'history') renderHistory();
+      if (tabId === 'result') renderResultGate();
+    }
+
+    document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab'))));
+
+    // Initialize
+    renderPredictorDropdown();
+    listenToMatches();
+    listenToPredictions();
+    listenToResults();
+    listenToLeaderboard();
+    resultUnlocked = false;
+    renderResultGate();
+    updateSyncStatus(true);
+
+    // Expose functions globally
+    window.addMatch = addMatch;
+    window.submitPrediction = submitPrediction;
+    window.submitResult = submitResult;
+    window.lockResult = lockResult;
+    window.saveNewPin = saveNewPin;
+    window.pinPress = pinPress;
+    window.pinDel = pinDel;
+    window.switchTab = switchTab;
+  </script>
+</body>
+
+</html>
