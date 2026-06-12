@@ -597,6 +597,11 @@
             <input type="text" id="team2-input" placeholder="Team B, e.g. France" autocomplete="off">
             <button class="btn-sm" onclick="addMatch()">➕ Add</button>
           </div>
+          <div class="add-match-row" style="margin-top: 12px;">
+            <input type="datetime-local" id="kickoff-time" style="flex:2;">
+            <span style="color:var(--text-muted); font-size:12px;">⏰ Kickoff time (predictions close at this
+              time)</span>
+          </div>
         </div>
         <div class="result-card">
           <div class="match-label">🏁 ENTER FINAL SCORE</div>
@@ -746,21 +751,36 @@
     }
 
     async function submitPredictionToFirestore(matchId, cousin, scoreA, scoreB) {
-      // Check if prediction already exists
+      // Get match details
+      const match = matches.find(m => m.id === matchId);
+      if (!match) return;
+
+      // CHECK 1: Match result already exists?
+      const matchResult = results.find(r => r.matchId === matchId);
+      if (matchResult) {
+        toastMsg(`⛔ Match already finished! No predictions allowed.`, true);
+        return;
+      }
+
+      // CHECK 2: Match kicked off already? (if kickoff time exists)
+      if (match.kickoff && new Date() > new Date(match.kickoff)) {
+        toastMsg(`⛔ Match has already kicked off at ${new Date(match.kickoff).toLocaleTimeString()}! Predictions closed.`, true);
+        return;
+      }
+
+      // CHECK 3: Existing prediction?
       const existing = predictions.find(p => p.matchId === matchId && p.cousin === cousin);
       if (existing) {
-        await db.collection('predictions').doc(existing.id).update({ scoreA, scoreB });
-        toastMsg(`✏️ ${cousin} prediction updated`);
-      } else {
-        await db.collection('predictions').add({
-          matchId,
-          cousin,
-          scoreA,
-          scoreB,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        toastMsg(`📝 ${cousin} predicted ${scoreA}–${scoreB}`);
+        toastMsg(`❌ You already predicted for this match! No changes allowed.`, true);
+        return;
       }
+
+      // All checks passed - save prediction
+      await db.collection('predictions').add({
+        matchId, cousin, scoreA, scoreB,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      toastMsg(`📝 ${cousin} predicted ${scoreA}–${scoreB}`);
     }
 
     async function submitResultToFirestore(matchId, scoreA, scoreB) {
