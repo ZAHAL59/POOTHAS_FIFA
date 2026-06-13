@@ -551,22 +551,40 @@
     </div>
 
     <div id="tab-predict" class="section active">
+      <div id="upcomingMatchesContainer"
+        style="margin-bottom: 20px; background: linear-gradient(135deg, rgba(255,211,77,0.15), rgba(0,226,155,0.05)); border-radius: 28px; padding: 16px 18px; border: 1px solid var(--gold); backdrop-filter: blur(8px);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+          <span style="font-size: 24px;">📅</span>
+          <span class="match-label" style="margin-bottom: 0; color: var(--gold); font-size: 14px;">UPCOMING
+            MATCHES</span>
+          <span
+            style="background: var(--gold); color: #1a2a00; padding: 2px 12px; border-radius: 30px; font-size: 10px; font-weight: 800;">PREDICT
+            NOW</span>
+        </div>
+        <div id="upcomingMatchesList" style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="text-align:center; padding: 20px; color: var(--text-muted);">Loading matches...</div>
+        </div>
+      </div>
+
       <div class="match-card">
         <div class="match-label">🎯 MAKE YOUR PREDICTION</div>
         <div class="form-label">⚽ Select match</div>
         <select class="match-select" id="match-select">
           <option value="">— Choose a match —</option>
         </select>
+
         <div id="selected-match-display"
           style="text-align:center; font-weight:600; margin: 16px 0 8px; color: var(--text-muted);">
           ⚽ Pick a match above
         </div>
+
         <div class="predictor-block">
           <div class="form-label">👤 Who's predicting?</div>
           <select class="who-select" id="predictor-select">
             <option value="">— Choose your name —</option>
           </select>
         </div>
+
         <div class="score-inputs">
           <div class="score-input-wrap">
             <label id="score-label-a">TEAM A</label>
@@ -578,8 +596,10 @@
             <input type="number" class="score-box" id="pred-score-b" min="0" max="20" value="0">
           </div>
         </div>
+
         <button class="btn-primary" onclick="submitPrediction()">✨ SUBMIT PREDICTION</button>
       </div>
+
       <div style="margin-top: 20px;">
         <div class="match-label" style="margin-bottom: 12px;">👥 ALL PREDICTIONS FOR THIS MATCH</div>
         <div id="all-predictions-list"
@@ -606,9 +626,8 @@
             <button class="btn-sm" onclick="addMatch()">➕ Add</button>
           </div>
           <div class="add-match-row" style="margin-top: 12px;">
-            <input type="datetime-local" id="kickoff-time" style="flex:2;">
-            <span style="color:var(--text-muted); font-size:12px;">⏰ Kickoff time (predictions close at this
-              time)</span>
+            <input type="datetime-local" id="match-datetime" style="flex:2;">
+            <span style="font-size:11px; color:var(--text-muted);">📅 Match date & time (predictions close here)</span>
           </div>
         </div>
         <div class="result-card">
@@ -635,7 +654,7 @@
     </div>
 
     <div id="tab-leaderboard" class="section">
-      <div class="lb-title">🥇LEADERBOARD</div>
+      <div class="lb-title">🥇 LEADERBOARD</div>
       <div id="leaderboard-list"></div>
     </div>
 
@@ -646,8 +665,7 @@
   <div id="toast" class="toast">✨</div>
 
   <script>
-    // ==================== 🔥 FIREBASE CONFIGURATION ====================
-    // 👇 PASTE YOUR FIREBASE CONFIG HERE (from Firebase Console)
+    // ==================== FIREBASE CONFIGURATION ====================
     const firebaseConfig = {
       apiKey: "AIzaSyDB_QBT9vSvC5PfBM8jm_mHf2oMGiYUJGI",
       authDomain: "fifa-predictor-6ab31.firebaseapp.com",
@@ -656,40 +674,22 @@
       messagingSenderId: "751693613247",
       appId: "1:751693613247:web:d1c20c0bbf3d788c5d9e0a"
     };
-    // ==================================================================
-
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // ========== COUSINS NAMES (EDIT THIS LIST) ==========
+    // ========== COUSINS NAMES ==========
     const COUSINS = [
-      "Shamsheer",
-      "Shiraz",
-      "Haneefa",
-      "Noufal",
-      "Mashood",
-      "Noushad",
-      "Ashiq",
-      "Tharique",
-      "Shakeel",
-      "Shameel",
-      "Sajir",
-      "Muhsi",
-      "Nadeem",
-      "Hozef",
-      "Ziyan",
-      "Zeeshan",
-      "Zahal",
-      "Mazin",
-      "Amen",
-      "Rezin"
-
+      "Shamsheer", "Shiraz", "Haneefa", "Noufal", "Mashood", "Noushad", "Ashiq",
+      "Tharique", "Shakeel", "Shameel", "Sajir", "Muhsi", "Nadeem", "Hozef",
+      "Ziyan", "Zeeshan", "Zahal", "Mazin", "Amen", "Rezin", "Zayan"
     ];
-    // ====================================================
 
     let resultUnlocked = false;
     let pinInputBuffer = '';
+    let matches = [];
+    let predictions = [];
+    let results = [];
+    let leaderboard = {};
 
     function toastMsg(msg, isErr = false) {
       const t = document.getElementById('toast');
@@ -712,20 +712,20 @@
       }
     }
 
-    // Real-time listeners for shared data
-    let matches = [];
-    let predictions = [];
-    let results = [];
-    let leaderboard = {};
-
+    // ------------------ REAL-TIME LISTENERS ------------------
     function listenToMatches() {
-      db.collection('matches').orderBy('date', 'desc').onSnapshot(snapshot => {
+      db.collection('matches').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
         matches = [];
         snapshot.forEach(doc => matches.push({ id: doc.id, ...doc.data() }));
+        console.log("Matches loaded:", matches.length);
         renderMatchSelects();
         onMatchSelectChange();
         renderHistory();
         renderLeaderboard();
+        renderUpcomingMatches();
+      }, error => {
+        console.error("Matches listener error:", error);
+        toastMsg("Failed to load matches", true);
       });
     }
 
@@ -735,7 +735,8 @@
         snapshot.forEach(doc => predictions.push({ id: doc.id, ...doc.data() }));
         renderLeaderboard();
         renderHistory();
-        renderAllPredictions();  // 👈 Added: updates the "all predictions" list
+        renderAllPredictions();
+        renderUpcomingMatches();
       });
     }
 
@@ -745,46 +746,70 @@
         snapshot.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
         renderLeaderboard();
         renderHistory();
+        renderMatchSelects();
+        renderUpcomingMatches();
       });
     }
 
-    async function addMatchToFirestore(team1, team2) {
-      const match = {
-        team1,
-        team2,
-        date: new Date().toLocaleDateString('en-GB'),
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      await db.collection('matches').add(match);
-      toastMsg(`➕ ${team1} vs ${team2} added (shared)`);
+    function listenToLeaderboard() {
+      db.collection('leaderboard').onSnapshot(snapshot => {
+        leaderboard = {};
+        snapshot.forEach(doc => { leaderboard[doc.id] = doc.data().wins; });
+        renderLeaderboard();
+      });
     }
 
+    // ------------------ ADD MATCH ------------------
+    async function addMatchToFirestore(team1, team2) {
+      try {
+        const datetimeInput = document.getElementById('match-datetime')?.value;
+        const match = {
+          team1, team2,
+          dateAdded: new Date().toLocaleDateString('en-GB'),
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        if (datetimeInput) {
+          const [datePart, timePart] = datetimeInput.split('T');
+          const [year, month, day] = datePart.split('-');
+          match.matchDate = `${day}-${month}-${year}`;
+          match.matchTime = timePart.slice(0, 5);
+          match.matchDateTimeRaw = datetimeInput;
+          match.kickoff = datetimeInput;
+        } else {
+          const today = new Date();
+          match.matchDate = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
+          match.matchTime = '--:--';
+        }
+        await db.collection('matches').add(match);
+        document.getElementById('team1-input').value = '';
+        document.getElementById('team2-input').value = '';
+        const dtInput = document.getElementById('match-datetime');
+        if (dtInput) dtInput.value = '';
+        toastMsg(`➕ ${team1} vs ${team2} added (${match.matchDate})`);
+      } catch (error) {
+        console.error("Firestore add error:", error);
+        toastMsg(`❌ Failed to add match: ${error.message}`, true);
+      }
+    }
+
+    // ------------------ PREDICTION SUBMIT ------------------
     async function submitPredictionToFirestore(matchId, cousin, scoreA, scoreB) {
-      // Get match details
       const match = matches.find(m => m.id === matchId);
       if (!match) return;
-
-      // CHECK 1: Match result already exists?
       const matchResult = results.find(r => r.matchId === matchId);
       if (matchResult) {
         toastMsg(`⛔ Match already finished! No predictions allowed.`, true);
         return;
       }
-
-      // CHECK 2: Match kicked off already? (if kickoff time exists)
       if (match.kickoff && new Date() > new Date(match.kickoff)) {
         toastMsg(`⛔ Match has already kicked off at ${new Date(match.kickoff).toLocaleTimeString()}! Predictions closed.`, true);
         return;
       }
-
-      // CHECK 3: Existing prediction?
       const existing = predictions.find(p => p.matchId === matchId && p.cousin === cousin);
       if (existing) {
         toastMsg(`❌ You already predicted for this match! No changes allowed.`, true);
         return;
       }
-
-      // All checks passed - save prediction
       await db.collection('predictions').add({
         matchId, cousin, scoreA, scoreB,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -792,33 +817,23 @@
       toastMsg(`📝 ${cousin} predicted ${scoreA}–${scoreB}`);
     }
 
+    // ------------------ RESULT SUBMIT ------------------
     async function submitResultToFirestore(matchId, scoreA, scoreB) {
       const existing = results.find(r => r.matchId === matchId);
       if (existing) {
         toastMsg('Result already recorded!', true);
         return;
       }
-
-      await db.collection('results').add({
-        matchId,
-        scoreA,
-        scoreB,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      // Award points to exact predictors
+      await db.collection('results').add({ matchId, scoreA, scoreB, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
       const exactWinners = predictions.filter(p => p.matchId === matchId && p.scoreA === scoreA && p.scoreB === scoreB);
-
       for (const winner of exactWinners) {
         const leaderboardRef = db.collection('leaderboard').doc(winner.cousin);
         const doc = await leaderboardRef.get();
         const currentWins = doc.exists ? doc.data().wins : 0;
         await leaderboardRef.set({ wins: currentWins + 1, name: winner.cousin });
       }
-
       const match = matches.find(m => m.id === matchId);
       toastMsg(`✅ ${match?.team1} ${scoreA}–${scoreB} ${match?.team2}`);
-
       const winnersDiv = document.getElementById('winners-display');
       if (winnersDiv) {
         winnersDiv.innerHTML = exactWinners.length ? exactWinners.map(w => `<div class="winner-chip">🎯 ${w.cousin}</div>`).join('') : '<span style="color: var(--text-muted);">No exact predictions</span>';
@@ -826,31 +841,26 @@
       }
     }
 
-    async function listenToLeaderboard() {
-      db.collection('leaderboard').onSnapshot(snapshot => {
-        leaderboard = {};
-        snapshot.forEach(doc => {
-          leaderboard[doc.id] = doc.data().wins;
-        });
-        renderLeaderboard();
-      });
-    }
-
-    // UI Helper functions
+    // ------------------ RENDER FUNCTIONS ------------------
     function renderMatchSelects() {
       const predSelect = document.getElementById('match-select');
       if (predSelect) {
+        const finishedIds = results.map(r => r.matchId);
+        const activeMatches = matches.filter(m => !finishedIds.includes(m.id));
         let opts = '<option value="">— Select a match —</option>';
-        matches.forEach(m => opts += `<option value="${m.id}">${m.team1} 🆚 ${m.team2} (${m.date})</option>`);
+        activeMatches.forEach(m => {
+          const dateDisplay = m.matchDate ? ` (${m.matchDate})` : '';
+          opts += `<option value="${m.id}">${m.team1} 🆚 ${m.team2}${dateDisplay}</option>`;
+        });
         predSelect.innerHTML = opts;
         predSelect.onchange = onMatchSelectChange;
       }
       const resultSelect = document.getElementById('result-match-select');
       if (resultSelect) {
-        const usedIds = results.map(r => r.matchId);
-        const pending = matches.filter(m => !usedIds.includes(m.id));
+        const finishedIds = results.map(r => r.matchId);
+        const pending = matches.filter(m => !finishedIds.includes(m.id));
         let optsRes = '<option value="">— Choose match —</option>';
-        pending.forEach(m => optsRes += `<option value="${m.id}">${m.team1} vs ${m.team2} (${m.date})</option>`);
+        pending.forEach(m => optsRes += `<option value="${m.id}">${m.team1} vs ${m.team2} (${m.matchDate || m.date || 'date unknown'})</option>`);
         resultSelect.innerHTML = optsRes;
         resultSelect.onchange = function () {
           const match = matches.find(m => m.id === this.value);
@@ -872,11 +882,15 @@
         disp.innerHTML = `${match.team1}  ⚡  ${match.team2}`;
         document.getElementById('score-label-a').innerHTML = match.team1;
         document.getElementById('score-label-b').innerHTML = match.team2;
+        document.getElementById('pred-score-a').disabled = false;
+        document.getElementById('pred-score-b').disabled = false;
       } else {
         disp.style.color = 'var(--text-muted)';
-        disp.innerHTML = '⚽ Pick a match from list';
+        disp.innerHTML = id ? '⚽ This match is finished!' : '⚽ Pick a match from list';
         document.getElementById('score-label-a').innerHTML = 'Team A';
         document.getElementById('score-label-b').innerHTML = 'Team B';
+        document.getElementById('pred-score-a').disabled = true;
+        document.getElementById('pred-score-b').disabled = true;
       }
       renderAllPredictions();
     }
@@ -885,7 +899,10 @@
       const container = document.getElementById('leaderboard-list');
       if (!container) return;
       const arr = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]);
-      if (arr.length === 0) { container.innerHTML = '<div class="empty-lb">✨ No wins yet. Add results to start ranking!</div>'; return; }
+      if (arr.length === 0) {
+        container.innerHTML = '<div class="empty-lb">✨ No wins yet. Add results to start ranking!</div>';
+        return;
+      }
       const medals = ['🥇', '🥈', '🥉'];
       container.innerHTML = arr.map(([name, wins], i) => `
         <div class="lb-row ${i < 3 ? 'rank-' + (i + 1) : ''}">
@@ -897,17 +914,66 @@
       `).join('');
     }
 
+    function renderUpcomingMatches() {
+      const container = document.getElementById('upcomingMatchesList');
+      if (!container) return;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const finishedIds = results.map(r => r.matchId);
+      const upcoming = matches.filter(m => {
+        if (finishedIds.includes(m.id)) return false;
+        if (!m.matchDate) return false;
+        const [day, month, year] = m.matchDate.split('-');
+        const matchDateObj = new Date(`${year}-${month}-${day}`);
+        return matchDateObj >= today;
+      });
+      if (upcoming.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding: 16px; color: var(--text-muted);">⚽ No upcoming matches. Add some!</div>';
+        return;
+      }
+      const currentPredictor = document.getElementById('predictor-select')?.value || '';
+      container.innerHTML = upcoming.map(match => {
+        const userPred = predictions.find(p => p.matchId === match.id && p.cousin === currentPredictor);
+        const predStatus = userPred ? `✅ ${userPred.scoreA}–${userPred.scoreB}` : '⚡ Not predicted yet';
+        const timeDisplay = match.matchTime ? `⏰ ${match.matchTime}` : '';
+        return `
+          <div class="today-match-card" style="background: rgba(0,0,0,0.4); border-radius: 20px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: 0.1s; border: 1px solid rgba(255,211,77,0.3);" onclick="selectMatchFromToday('${match.id}')">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 800;">${match.team1} 🆚 ${match.team2}</span>
+              <span style="background: rgba(255,211,77,0.2); padding: 4px 12px; border-radius: 30px; font-size: 12px;">${timeDisplay || 'Time TBD'}</span>
+            </div>
+            <div style="margin-top: 8px; font-size: 13px;">${predStatus}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectMatchFromToday(matchId) {
+      const selectEl = document.getElementById('match-select');
+      if (selectEl) {
+        selectEl.value = matchId;
+        if (selectEl.onchange) selectEl.onchange();
+        selectEl.dispatchEvent(new Event('change'));
+        document.getElementById('selected-match-display')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        toastMsg(`📋 Selected: ${matches.find(m => m.id === matchId)?.team1} vs ${matches.find(m => m.id === matchId)?.team2}`);
+      }
+    }
+
     function renderHistory() {
       const histDiv = document.getElementById('history-list');
       if (!histDiv) return;
-      if (!results.length) { histDiv.innerHTML = '<div class="empty-lb">⚽ No completed matches yet.</div>'; return; }
+      if (!results.length) {
+        histDiv.innerHTML = '<div class="empty-lb">⚽ No completed matches yet.</div>';
+        return;
+      }
       const groups = {};
       results.forEach(res => {
         const match = matches.find(m => m.id === res.matchId);
         if (!match) return;
-        if (!groups[match.date]) groups[match.date] = [];
+        const dateKey = match.matchDate || match.dateAdded || 'unknown';
+        if (!groups[dateKey]) groups[dateKey] = [];
         const preds = predictions.filter(p => p.matchId === res.matchId);
-        groups[match.date].push({ match, result: res, preds });
+        groups[dateKey].push({ match, result: res, preds });
       });
       histDiv.innerHTML = Object.entries(groups).reverse().map(([date, items]) => `
         <div class="history-day">
@@ -930,14 +996,34 @@
       sel.innerHTML = '<option value="">— Choose your name —</option>' + COUSINS.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 
-    // Wrapper functions for buttons
+    function renderAllPredictions() {
+      const matchId = document.getElementById('match-select').value;
+      const container = document.getElementById('all-predictions-list');
+      if (!container) return;
+      if (!matchId) {
+        container.innerHTML = '<div style="text-align:center; color: var(--text-muted); padding: 16px;">⚽ Select a match to see predictions</div>';
+        return;
+      }
+      const matchPredictions = predictions.filter(p => p.matchId === matchId);
+      if (matchPredictions.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color: var(--text-muted); padding: 16px;">🤔 No predictions yet for this match. Be the first!</div>';
+        return;
+      }
+      const sorted = [...matchPredictions].sort((a, b) => (a.cousin || '').localeCompare(b.cousin || ''));
+      container.innerHTML = sorted.map(p => `
+        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); margin-bottom: 8px; padding: 10px 14px; border-radius: 12px;">
+          <span style="font-weight: 700; font-size: 14px;">👤 ${p.cousin}</span>
+          <span style="background: var(--green-deep); color: #041e17; padding: 4px 12px; border-radius: 30px; font-weight: 800; font-size: 14px;">${p.scoreA} – ${p.scoreB}</span>
+        </div>
+      `).join('');
+    }
+
+    // ------------------ WRAPPER FUNCTIONS ------------------
     async function addMatch() {
       const t1 = document.getElementById('team1-input').value.trim();
       const t2 = document.getElementById('team2-input').value.trim();
       if (!t1 || !t2) { toastMsg('Both team names needed', true); return; }
       await addMatchToFirestore(t1, t2);
-      document.getElementById('team1-input').value = '';
-      document.getElementById('team2-input').value = '';
     }
 
     async function submitPrediction() {
@@ -959,7 +1045,7 @@
       renderMatchSelects();
     }
 
-    // PIN Gate (same as before, but now admin PIN stored locally per device)
+    // ------------------ PIN GATE FUNCTIONS (FULLY IMPLEMENTED) ------------------
     function getAdminPin() { return localStorage.getItem('fifa_admin_pin') || ''; }
     function setAdminPin(pin) { localStorage.setItem('fifa_admin_pin', pin); }
 
@@ -982,7 +1068,7 @@
           <div class="match-label">🔐 CREATE ADMIN PIN</div>
           <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Set a 4-digit PIN to control matches & results.</p>
           <div class="pin-setup">
-            <input type="password" id="new-pin-input" maxlength="4" placeholder="••••" inputmode="numeric" autocomplete="off">
+            <input type="password" id="new-pin-input" maxlength="4" placeholder="····" inputmode="numeric" autocomplete="off">
             <button class="btn-primary" onclick="saveNewPin()">Set PIN & Unlock</button>
           </div>
         </div>`;
@@ -1005,7 +1091,7 @@
       </div>`;
       pinInputBuffer = '';
       updatePinDots();
-      document.querySelectorAll('.pin-btn[data-num]').forEach(btn => btn.addEventListener('click', (e) => { pinPress(btn.getAttribute('data-num')); }));
+      document.querySelectorAll('.pin-btn[data-num]').forEach(btn => btn.addEventListener('click', () => pinPress(btn.getAttribute('data-num'))));
       const del = document.querySelector('.del-btn');
       if (del) del.addEventListener('click', () => pinDel());
     }
@@ -1016,13 +1102,19 @@
         if (dot) dot.classList.toggle('filled', i < pinInputBuffer.length);
       }
     }
+
     function pinPress(digit) {
       if (pinInputBuffer.length >= 4) return;
       pinInputBuffer += digit;
       updatePinDots();
       if (pinInputBuffer.length === 4) setTimeout(() => verifyPin(), 120);
     }
-    function pinDel() { pinInputBuffer = pinInputBuffer.slice(0, -1); updatePinDots(); }
+
+    function pinDel() {
+      pinInputBuffer = pinInputBuffer.slice(0, -1);
+      updatePinDots();
+    }
+
     function verifyPin() {
       const stored = getAdminPin();
       if (pinInputBuffer === stored) {
@@ -1039,6 +1131,7 @@
         setTimeout(() => { pinInputBuffer = ''; updatePinDots(); }, 700);
       }
     }
+
     function saveNewPin() {
       const val = document.getElementById('new-pin-input').value.trim();
       if (!/^\d{4}$/.test(val)) { toastMsg('PIN must be 4 digits', true); return; }
@@ -1048,8 +1141,14 @@
       renderMatchSelects();
       toastMsg('PIN created! Unlocked now');
     }
-    function lockResult() { resultUnlocked = false; renderResultGate(); document.getElementById('winners-section').style.display = 'none'; }
 
+    function lockResult() {
+      resultUnlocked = false;
+      renderResultGate();
+      document.getElementById('winners-section').style.display = 'none';
+    }
+
+    // ------------------ TAB SWITCHING ------------------
     function switchTab(tabId) {
       document.querySelectorAll('.tab').forEach((btn, idx) => {
         const t = ['predict', 'result', 'leaderboard', 'history'][idx];
@@ -1062,39 +1161,14 @@
       if (tabId === 'result') renderResultGate();
     }
 
-    function renderAllPredictions() {
-      const matchId = document.getElementById('match-select').value;
-      const container = document.getElementById('all-predictions-list');
-      if (!container) return;
-
-      if (!matchId) {
-        container.innerHTML = '<div style="text-align:center; color: var(--text-muted); padding: 16px;">⚽ Select a match to see predictions</div>';
-        return;
-      }
-
-      // Filter predictions for this match
-      const matchPredictions = predictions.filter(p => p.matchId === matchId);
-
-      if (matchPredictions.length === 0) {
-        container.innerHTML = '<div style="text-align:center; color: var(--text-muted); padding: 16px;">🤔 No predictions yet for this match. Be the first!</div>';
-        return;
-      }
-
-      // Sort by timestamp (oldest first) or alphabetically by name
-      const sorted = [...matchPredictions].sort((a, b) => (a.cousin || '').localeCompare(b.cousin || ''));
-
-      container.innerHTML = sorted.map(p => `
-    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); margin-bottom: 8px; padding: 10px 14px; border-radius: 12px;">
-      <span style="font-weight: 700; font-size: 14px;">👤 ${p.cousin}</span>
-      <span style="background: var(--green-deep); color: #041e17; padding: 4px 12px; border-radius: 30px; font-weight: 800; font-size: 14px;">${p.scoreA} – ${p.scoreB}</span>
-    </div>
-  `).join('');
-    }
-
     document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab'))));
 
-    // Initialize
+    // ------------------ INITIALIZATION ------------------
     renderPredictorDropdown();
+    document.getElementById('predictor-select').addEventListener('change', () => {
+      renderUpcomingMatches();
+      renderAllPredictions();
+    });
     listenToMatches();
     listenToPredictions();
     listenToResults();
@@ -1103,7 +1177,7 @@
     renderResultGate();
     updateSyncStatus(true);
 
-    // Expose functions globally
+    // Expose global functions for inline onclick handlers
     window.addMatch = addMatch;
     window.submitPrediction = submitPrediction;
     window.submitResult = submitResult;
@@ -1112,6 +1186,7 @@
     window.pinPress = pinPress;
     window.pinDel = pinDel;
     window.switchTab = switchTab;
+    window.selectMatchFromToday = selectMatchFromToday;
   </script>
 </body>
 
